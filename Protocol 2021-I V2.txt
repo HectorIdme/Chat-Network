@@ -1,0 +1,139 @@
+l	         Login
+[user ---> Server]
+{
+char  accion; //l 
+char  tamaño_user[2];
+char  tamaño_password[2];
+char  * user; 
+char  * password; 
+}
+ejemplo:
+l0504julioucsp
+l1104santistebanucsp
+
+[Server ----> user]
+ok{
+char accion;//L
+char ok[2];
+}
+error{
+char accion;//E
+char error_msg[20];
+}
+
+ejemplo:
+Lok
+E fix-20 msg
+---------------------------
+i	List
+[user ---> Server]
+i
+[Server ----> user]
+{
+char accion;//I
+char  num_users[2];
+char  tamaño_user_name[2];
+char  * user_name; 
+}
+
+I
+fix-2 number of users
+fix-2 size of name
+V  name of users
+eg: I03110305SantistebanLeePeter
+    I03030203JonWuLee
+-----
+IE fix-20 msg
+
+-----------------------------------------------
+m	msg-user
+[user ---> Server]
+m
+{
+char accion;//m
+char tamaño_msg[3];
+char tamaño_destinatario[2];
+char * msg;
+char * destinatario;
+}
+[Server ----> user]
+M
+{
+char accion;//M
+char tamaño_msg[3];
+char tamaño_remitente[2];
+char * msg;
+char * remitente;
+}
+-----------------------------------------------
+
+b	msg-bc
+[user ---> Server]
+{
+char accion;//b
+char tamaño_msg[3];
+char * msg;
+}
+[Server ----> user]
+{
+char accion;//B
+char tamaño_msg[3];
+char tamaño_remitente[2];
+char * msg;
+char * remitente;
+}
+--------------------------------------
+u	uploadfile
+[user ---> Server]
+{
+char accion;//u
+char tamaño_file_name[3];
+char tamaño_file_data[10];
+char tamaño_destinatario[2];
+char * file_name;
+char * file_data;
+char * destinatario;
+}
+[Server ----> user]
+{char accion;/U
+char tamaño_file_name[3];
+char tamaño_file_data[10];
+char tamaño_remitente[2];
+char * file_name;
+char * file_data;
+char * remitente;
+}
+--------------------------------------
+f	file_AN (Usuario no quiere el usuario)
+// archivo se recivio pero no se guardo
+[user ---> Server]
+{
+char accion;//f
+char tamaño_remitente[2];
+char * remitente;
+}
+
+[Server ----> user]
+{
+char acccion;//F  se rechaso el archivo 
+char tamaño_user_name[2]; 
+char * user_name;
+}
+N/A
+--------------------------------------
+x	Exit
+[user ---> Server]
+{char accion;//x}
+[Server ----> user]
+{
+char accion;//X
+}
+-------------------------
+e	Error
+[user ---> Server]
+N/A
+[Server ----> user]
+{
+char accion;//E
+char msg[20];
+}
