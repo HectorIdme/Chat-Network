@@ -1,5 +1,5 @@
   /* Server code in C */
- //g++ server.cpp -o server.exe -lpthread
+  //g++ server.cpp -o server.exe -lpthread
   #include <sys/types.h>
   #include <sys/socket.h>
   #include <netinet/in.h>
@@ -10,7 +10,7 @@
   #include <string.h>
   #include <unistd.h>
   #include <utility>
-
+  #include <regex>
   #include <thread>
   #include <vector>
 
@@ -18,6 +18,7 @@
  
 //vector<int> clients;
 vector<pair<int,vector<string>>> clientes;
+string pass_general = "ucsp";
 
 ////////////////////////////////////////////
 ////////////////////////////////////////////
@@ -33,6 +34,17 @@ string getUser(int id){
   return user;
 }
 
+int getID(string name_user){
+  int user;
+  for(int i=0;i<clientes.size();i++){
+    if(clientes[i].second[0] == name_user){
+        user = clientes[i].first;
+        return user;
+    }
+  }
+  return -1;
+}
+
 
 int getSize(int s){
     string tam = "9";
@@ -43,10 +55,10 @@ int getSize(int s){
 }
 
 int len(char* w){
+    string word(w);
     int count =0;
-    while(*w != '\0'){
+    while(word[count] != '\0'){
         count++;
-        w++;
     }
     return count;
 }
@@ -54,19 +66,69 @@ int len(char* w){
 string formatNumbers(int range,int number){
     string numb = to_string(number);
     if(numb.size() < range){
-        for(int i=1;i<range;i++){
+        for(int i=0;i<range-numb.size();i++){
             numb.insert(0,"0");
         }
     }
     return numb;
 }
 
-bool getDataFromPacket_Login(string msg,vector<string> &data){
+
+struct okey{
+  char accion;
+  char ok[3];
+
+  okey(){
+    accion = 'L';
+    strcpy(ok,"ok");
+  }
+
+  string make_packet(){
+    string packet = "";
+
+    packet += accion;
+    packet += ok;
+
+    return packet;
+  }
+};
+
+struct error{
+  char accion;
+  char error_msg[20];
+
+  error(){
+    accion = 'E'; 
+  }
+
+  void set_msg(string msg){
+    strcpy(error_msg,msg.c_str());
+  }  
+
+  string make_packet(){
+    string packet = " ";
+    
+    packet += accion;
+    packet += error_msg;
+
+    return packet;
+  }
+};
+
+
+bool getDataFromPacket_Login(string msg,vector<string> &data,int socket){
   string u,pssw;
   string tamU_str,tamPSSW_str;
   int tam_u,tam_pssw;
 
-  if(msg[0] != 'l'){return false;}
+  if(msg[0] != 'l'){
+    string msg_error;
+    error e;
+    e.set_msg("no coincide protocolo");
+    msg_error = e.make_packet();
+    write(socket,msg_error.c_str(),msg_error.size());
+    return false;
+  }
 
   msg.erase(0,1);
 
@@ -84,6 +146,16 @@ bool getDataFromPacket_Login(string msg,vector<string> &data){
   msg.erase(0,tam_u);
 
   pssw = msg.substr(0,tam_pssw);
+
+  if(pssw != pass_general){
+    string msg_error;
+    error e;
+    e.set_msg("Contrasenia no coincide");
+    msg_error = e.make_packet();
+    write(socket,msg_error.c_str(),msg_error.size());
+    return false;
+  }
+
   msg.erase(0,tam_pssw);
 
   data.push_back(u);
@@ -129,43 +201,185 @@ struct list{
   }
 };
 
+bool search_user(string usr_name){
+  for(int i=0;i<clientes.size();i++){
+    if(clientes[i].second[0] == usr_name){
+      return true;
+    }
+  }
+  return false;
+}
 
-struct okey{
+struct mensaje_user{
   char accion;
-  char ok[3];
+  char tamanio_msg[3];
+  char tamanio_remitente[2];
+  char* msg;
+  char* remitente;
 
-  okey(){
-    accion = 'L';
-    strcpy(ok,"ok");
+  mensaje_user(){
+    accion = 'M';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_dest = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    msg = new char[getSize(tam_msg)];
+    remitente = new char[getSize(tam_dest)];
   }
 
-  string make_packet(){
+  bool getDataFromPacket_MssgUser(string buff,int &socket_dest){
+
+    string mssg,dest;
+    string tammsg_str,tamdest_str;
+    int tam_msg,tam_dest;
+
+    if(buff[0] != 'm'){return false;}
+
+    string mensg = "";
+    mensg += buff;
+
+    mensg.erase(0,1);
+
+    tammsg_str = mensg.substr(0,3);
+    tam_msg = stoi(tammsg_str);
+  
+    mensg.erase(0,3);
+
+    tamdest_str = mensg.substr(0,2);
+    tam_dest = stoi(tamdest_str);
+    
+    mensg.erase(0,2);
+
+    mssg =  mensg.substr(0,tam_msg);
+    mensg.erase(0,tam_msg);
+
+    dest =  mensg.substr(0,tam_dest);
+    mensg.erase(0,tam_dest);
+
+    if(search_user(dest)){
+      strcpy(msg,mssg.c_str());
+      socket_dest = getID(dest);
+
+      if(socket_dest == -1){
+        return false;
+      }
+
+      return true;
+    }else{
+      return false;
+    }
+
+    if(mensg.size() == 0){return true;}
+    else{return false;}
+
+  }
+
+  string make_packet(int socket_rem){
+    strcpy(remitente,getUser(socket_rem).c_str());
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_rem = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    int numberChar_msg = len(msg);
+    int numberChar_rem = len(remitente);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+    string rem_size = formatNumbers(tam_rem,numberChar_rem);
+
     string packet = "";
 
     packet += accion;
-    packet += ok;
+    packet += msg_size;
+    packet += rem_size;
+    packet += msg;
+    packet += remitente;
 
     return packet;
   }
+
+  bool sendMessage(int socket_dest, string message){
+    for (int i = 0; i < clientes.size(); i++) {
+      if(clientes[i].first == socket_dest){
+        write(socket_dest, message.c_str(),message.size());
+        return true;
+      }
+    }
+    return false;
+  }
+
 };
 
-struct error{
+struct mensaje_all{
   char accion;
-  char error_msg[20];
-/*
-  void set_msg(string msg){
-    strcpy(error_msg,msg);
-  }  */
+  char tamanio_msg[3];
+  char tamanio_remitente[2];
+  char* msg;
+  char* remitente;
 
-  string make_packet(){
-    string packet = " ";
-    
-    packet = accion;
-    packet += error_msg;
+  mensaje_all(){
+    accion = 'B';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_rem = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    msg = new char[getSize(tam_msg)];
+    remitente = new char[getSize(tam_rem)];
+  }
+
+  bool getDataFromPacket_MssgUser(string buff){
+
+    string mssg,tammsg_str;
+    int tam_msg;
+
+    if(buff[0] != 'b'){return false;}
+
+    string mensg = "";
+    mensg += buff;
+
+    mensg.erase(0,1);
+
+    tammsg_str = mensg.substr(0,3);
+    tam_msg = stoi(tammsg_str);
+  
+    mensg.erase(0,3);
+
+    mssg =  mensg.substr(0,tam_msg);
+    mensg.erase(0,tam_msg);
+
+    strcpy(msg,mssg.c_str());
+
+    if(mensg.size() == 0){return true;}
+    else{return false;}
+
+  }
+
+  string make_packet(int socket_rem){
+    strcpy(remitente,getUser(socket_rem).c_str());
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_rem = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    int numberChar_msg = len(msg);
+    int numberChar_rem = len(remitente);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+    string rem_size = formatNumbers(tam_rem,numberChar_rem);
+
+    string packet = "";
+
+    packet += accion;
+    packet += msg_size;
+    packet += rem_size;
+    packet += msg;
+    packet += remitente;
 
     return packet;
   }
+
+  bool sendMessage(string message){
+
+    for (int i = 0; i < clientes.size(); i++) {
+      if(clientes[i].first != getID(remitente)){
+        write(clientes[i].first, message.c_str(),message.size());
+      }
+    }return true;
+
+  }
+
 };
+
 
 struct salir{
   char accion;
@@ -174,8 +388,11 @@ struct salir{
     accion = 'X';
   }
 
-  char make_packet(){
-    return accion;
+  string make_packet(){
+    string packet = "";
+
+    packet += accion;
+    return packet;
   }
 
   void deleteSocket(int id){
@@ -184,7 +401,7 @@ struct salir{
       if(clientes[pos].first == id){break;}
     }
 
-    //shutdown(id, SHUT_RDWR);
+    shutdown(id, SHUT_RDWR);
     //close(id);
     clientes.erase(clientes.begin()+pos);
   }
@@ -265,7 +482,7 @@ void listenClient(int ConnectFD)
     if (n < 0) perror("ERROR reading from socket");
 
     vector<string> datos_login;
-    bool validate_login= getDataFromPacket_Login(buffer,datos_login);
+    bool validate_login= getDataFromPacket_Login(buffer,datos_login,ConnectFD);
 
     if(validate_login){
 
@@ -276,8 +493,10 @@ void listenClient(int ConnectFD)
       string msg = k.make_packet();
       write(ConnectFD, msg.c_str(),msg.size());
 
-      while(1)
-      {
+      //regex r("(\\w|\\d|\\s1\\W)");
+      regex r("\\d");
+
+      while(1){
 
         bzero(buffer,256); 
         n = read(ConnectFD,buffer,255);
@@ -286,17 +505,25 @@ void listenClient(int ConnectFD)
            break;
         }
          string user = getUser(ConnectFD);
+         string character = "";
+         int tam_msg = len(buffer);
+         character += buffer[1];
+        ///analizador de segundo caracter
 
-        if(strcmp(buffer, "i") == 0){
+        if(buffer[0] == 'i' && tam_msg == 1){
           list users;
           msg = users.make_packet();
           write(ConnectFD,msg.c_str(),msg.size());
+          bzero(buffer,256);
+          msg = "";
         }
 
-        else if(strcmp(buffer, "x") == 0){
+        else if(buffer[0] == 'x' && tam_msg == 1){
           salir e;
           msg = e.make_packet();
           write(ConnectFD,msg.c_str(),msg.size());
+          bzero(buffer,256);
+          msg = "";
           e.deleteSocket(ConnectFD);
           close(ConnectFD);
           if(clientes.size()){
@@ -304,12 +531,36 @@ void listenClient(int ConnectFD)
           }
         }
 
+        else if(buffer[0] == 'm' && regex_match(character,r)){
+          mensaje_user ms;
+          int socket_f = ConnectFD;
+          int socket_d;
+          ms.getDataFromPacket_MssgUser(buffer,socket_d);
+          msg = ms.make_packet(socket_f);
+          ms.sendMessage(socket_d,msg);
+          bzero(buffer,256);
+          msg = "";
+        }
+
+        else if(buffer[0] == 'b' && regex_match(character,r)){
+          mensaje_all ms;
+          int socket_f = ConnectFD;
+          ms.getDataFromPacket_MssgUser(buffer);
+          msg = ms.make_packet(socket_f);
+          ms.sendMessage(msg);
+          bzero(buffer,256);
+          msg = "";
+        }
+
         else{
+          cout<<"Ingrese un comando"<<endl;
+          bzero(buffer,256);
+          msg = "";
           //cout<<user<<": "<<buffer<<endl;
           //cout<<"Type a message: ";
-          message= user + ": " + buffer;
+          //message= user + ": " + buffer;
           //getline(cin,message);
-          Broadcast(ConnectFD, message);
+          //Broadcast(ConnectFD, message);
         }
       }
     }

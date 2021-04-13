@@ -11,12 +11,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
+#include <regex>
 #include <thread>
 
 using namespace std;
+
 int SocketFD;
 string comando;
 bool salida = false;
+
 
 ////////////////////////////////////////////
 ////////////////////////////////////////////
@@ -30,10 +33,10 @@ int getSize(int s){
 }
 
 int len(char* w){
+    string word(w);
     int count =0;
-    while(*w != '\0'){
+    while(word[count] != '\0'){
         count++;
-        w++;
     }
     return count;
 }
@@ -41,7 +44,7 @@ int len(char* w){
 string formatNumbers(int range,int number){
     string numb = to_string(number);
     if(numb.size() < range){
-        for(int i=1;i<range;i++){
+        for(int i=0;i<range-numb.size();i++){
             numb.insert(0,"0");
         }
     }
@@ -105,8 +108,88 @@ struct list{
     accion = 'i';
   }
 
-  char make_packet(){
-    return accion;
+  string make_packet(){
+    string packet = "";
+    packet += accion;
+    return packet;
+  }
+};
+
+struct mensaje_user{
+  char accion;
+  char tamanio_msg[3];
+  char tamanio_destinatario[2];
+  char* msg;
+  char* destinatario;
+
+  mensaje_user(){
+    accion = 'm';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    msg = new char[getSize(tam_msg)];
+    destinatario = new char[getSize(tam_dest)];
+  }
+
+  void msgUserView(){
+    cout<<"Mensaje Individual"<<endl;
+    cout<<"Destinatario: "; cin>>destinatario;
+    cin.ignore();
+    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+  }
+
+  string make_packet(){
+
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    int numberChar_msg = len(msg);
+    int numberChar_dest = len(destinatario);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+    string dest_size = formatNumbers(tam_dest,numberChar_dest);
+
+    string packet = "";
+
+    packet += accion;
+    packet += msg_size;
+    packet += dest_size;
+    packet += msg;
+    packet += destinatario;
+
+    return packet;
+  }
+};
+
+struct mensaje_all{
+  char accion;
+  char tamanio_msg[3];
+  char* msg;
+
+
+  mensaje_all(){
+    accion = 'b';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    msg = new char[getSize(tam_msg)];
+  }
+
+  void msgUserView(){
+    cout<<"Mensaje para Todos"<<endl;
+    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+  }
+
+  string make_packet(){
+
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    int numberChar_msg = len(msg);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+
+    string packet = "";
+
+    packet += accion;
+    packet += msg_size;
+    packet += msg;
+
+    return packet;
   }
 };
 
@@ -118,23 +201,31 @@ struct salir{
     accion = 'x';
   }
 
-  char make_packet(){
-    return accion;
+  string make_packet(){
+    string packet = "";
+    packet += accion;
+    return packet;
   }
 };
 
 
-bool getDataFromPacket_Okey(string msg){
-  if(msg[0] != 'L'){return false;}
+bool getDataFromPacket_Okey(string buff){
+  if(buff[0] != 'L'){return false;}
+
+  string msg = "";
+  msg += buff;
   msg.erase(0,1);
   cout<<msg<<endl;
   return true;
 }
 
-bool getDataFromPacket_List(string msg){
-  if(msg[0] != 'I'){return false;}
+bool getDataFromPacket_List(string buff,vector<string> &users){
+  if(buff[0] != 'I'){return false;}
 
-  vector<string> users;
+  string msg = "";
+  msg += buff;
+
+  //vector<string> users;
   vector<int> tamanios;
   string u = "";
   string tamU,numCli;
@@ -160,16 +251,62 @@ bool getDataFromPacket_List(string msg){
     users.push_back(u);
     msg.erase(0,tamanios[i]);
   }
-  
+  /*
   for(int i=0;i<users.size();i++){
     cout<<"[-]"<<users[i]<<endl;
-  }
+  }*/
 
   if(msg.size() == 0){return true;}
   else{return false;}
 }
 
+bool getDataFromPacket_Msg(string buff,string &mensaje,bool opcion=0){
+  
+  if(opcion == 1){
+    if(buff[0] != 'B'){return false;}
+  }
+  else{
+    if(buff[0] != 'M'){return false;}
+  }
+  
+  string msg = "";
+  msg += buff;
 
+  string mssg = "";
+  string rem = "";
+  string tamMsg,tamRem;
+  int tam_msg,tam_rem;
+
+  msg.erase(0,1);
+
+  tamMsg = msg.substr(0,3);
+  tam_msg = stoi(tamMsg);
+
+  msg.erase(0,3);
+
+  tamRem = msg.substr(0,2);
+  tam_rem = stoi(tamRem);
+
+  msg.erase(0,2);
+
+  mssg = msg.substr(0,tam_msg);
+  msg.erase(0,tam_msg);
+
+  rem = msg.substr(0,tam_rem);
+  msg.erase(0,tam_rem);
+
+  //cout<<rem + ": " + mssg;
+  if(opcion == 1){
+    mensaje = rem + ": " + mssg;
+  }
+  else{
+    mensaje = "(priv)" + rem + ": " + mssg;
+  }
+   
+
+  if(msg.size() == 0){return true;}
+  else{return false;}
+}
 
 ////////////////////////////////////////////
 ////////////////////////////////////////////
@@ -214,15 +351,18 @@ void Connection ( string IP, int port)
     }else{printf("connected to the server\n");}
 }
 
+
 void Listen()
 { 
   char b[256];
   bzero(b,256);
   read(SocketFD, b,256);
   bool validate_login = getDataFromPacket_Okey(b);
-  cout<<"login: "<<validate_login<<endl;
+  bzero(b,256);
 
   if(validate_login){
+
+    regex r("\\d");
     while(1)
     {
       int n;
@@ -233,16 +373,42 @@ void Listen()
         //perror("ERROR reading from socket");
         break;
       }
-      else if(comando == "i"){
-        getDataFromPacket_List(buffer);
+
+      string character = "";
+      int tam_msg = len(buffer);
+      character += buffer[1];
+
+      if(comando == "/lista"){
+        vector<string> users;
+        getDataFromPacket_List(buffer,users);
+        for(int i=0;i<users.size();i++){
+          cout<<"[-]"<<users[i]<<endl;
+        }
+        bzero(buffer,256);
       }
-      else if(comando == "x"){
+      else if(comando == "/salir"){
         if(strcmp(buffer,"X")==0){
           salida = true;
+          break;
         }
       }
+      else if(buffer[0] == 'M' && regex_match(character,r)){
+        string mensaje_recibido;
+        getDataFromPacket_Msg(buffer,mensaje_recibido);
+        cout<<mensaje_recibido<<endl;
+        bzero(buffer,256);
+      }
+      else if(buffer[0] == 'B' && regex_match(character,r)){
+        string mensaje_recibido;
+        getDataFromPacket_Msg(buffer,mensaje_recibido,1);
+        cout<<mensaje_recibido<<endl;
+        bzero(buffer,256);
+      }
       else{
-        cout<<buffer<<endl;
+        bzero(buffer,256);
+        break;
+        //cout<<"general"<<endl;
+        //cout<<buffer<<endl;
       }
     }
   }
@@ -261,33 +427,44 @@ int main(void)
   write(SocketFD,msg.c_str(),msg.size());
 
   thread(Listen).detach();
-
-  while( 1 )
-  { 
-      if(salida){break;}
-      string message;
-      cout<<">>";
-      message="";
-      getline(cin,message);
-      comando = message;
-      
-      if(comando == "i"){
-        list l;
-        message = l.make_packet();
-      }
-      else if(comando == "x"){
-        salir e;
-        message = e.make_packet();
-      }
-      n = write(SocketFD,message.c_str(),message.length());
-      if (n < 0){
-        //perror("ERROR reading from socket");
-        break;
-      }    
-  }
-
   
+  if(!salida){
+    while( 1 )
+      { 
+          if(salida){break;}
+          string message;
+          cout<<">>";
+          message="";
+          getline(cin,message);
+          comando = message;
+          
+          if(comando == "/lista"){
+            list l;
+            message = l.make_packet();
+          }
+          else if(comando == "/salir"){
+            salir e;
+            message = e.make_packet();
+          }
+          else if(comando == "/msg_priv"){
+            mensaje_user m;
+            m.msgUserView();
+            message = m.make_packet();
+          }
+          else if(comando == "/msg"){
+            mensaje_all ma;
+            ma.msgUserView();
+            message = ma.make_packet();
+          }
 
+          n = write(SocketFD,message.c_str(),message.size());
+          if (n < 0){
+            //perror("ERROR reading from socket");
+            break;
+          }    
+      }
+  }
+ 
   shutdown(SocketFD, SHUT_RDWR);
 
   close(SocketFD);
