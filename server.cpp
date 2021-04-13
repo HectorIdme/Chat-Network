@@ -66,7 +66,7 @@ int len(char* w){
 string formatNumbers(int range,int number){
     string numb = to_string(number);
     if(numb.size() < range){
-        for(int i=0;i<range-numb.size();i++){
+        for(int i=0;i<range-numb.size()+1;i++){
             numb.insert(0,"0");
         }
     }
@@ -380,6 +380,41 @@ struct mensaje_all{
 
 };
 
+struct uploadfile{
+  char accion;
+  char tamanio_file_name[3];
+  char tamanio_file_data[10];
+  char tamanio_remitente[2];
+  char* file_name;
+  char* file_data;
+  char* remitente;
+
+  uploadfile(){
+    accion = 'U';
+    size_t tam_fn = sizeof(tamanio_file_name)/sizeof(tamanio_file_name[0]);
+    size_t tam_fd = sizeof(tamanio_file_data)/sizeof(tamanio_file_data[0]);
+    size_t tam_re = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    file_name = new char[getSize(tam_fn)];
+    file_data = new char[getSize(tam_fd)];
+    remitente = new char[getSize(tam_re)];
+  }
+
+
+
+};
+
+struct file_AN{
+  char accion;
+  char tamanio_user_name[2];
+  char* user_name;
+
+  file_AN(){
+    accion = 'F';
+    size_t tam_u = sizeof(tamanio_user_name)/sizeof(tamanio_user_name[0]);
+    user_name = new char[getSize(tam_u)];
+  }
+
+};
 
 struct salir{
   char accion;
@@ -472,6 +507,7 @@ void Connection( int &SocketFD , int port)
 
 void listenClient(int ConnectFD)
 {
+    //cout<<"open funcion Listen-server"<<endl;
     char buffer[256];
     int n;
 
@@ -504,6 +540,8 @@ void listenClient(int ConnectFD)
            //perror("ERROR reading from socket");
            break;
         }
+        //cout<<"buffer-read-server: "<<buffer<<endl;
+
          string user = getUser(ConnectFD);
          string character = "";
          int tam_msg = len(buffer);
@@ -561,6 +599,18 @@ void listenClient(int ConnectFD)
           //message= user + ": " + buffer;
           //getline(cin,message);
           //Broadcast(ConnectFD, message);
+        }
+      }
+    }
+    else{
+      for(int i = 0; i < clientes.size(); ++i) 
+      {
+        if (clientes[i].first == ConnectFD) 
+        {
+          shutdown(ConnectFD, SHUT_RDWR);
+          close(ConnectFD);
+          clientes.erase(clientes.begin() + i);
+          break;
         }
       }
     }

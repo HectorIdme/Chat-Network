@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,9 +41,10 @@ int len(char* w){
 }
 
 string formatNumbers(int range,int number){
+    //cout<<"range: "<<range<<" num: "<<number<<endl;
     string numb = to_string(number);
     if(numb.size() < range){
-        for(int i=0;i<range-numb.size();i++){
+        for(int i=0;i<range-numb.size()+1;i++){
             numb.insert(0,"0");
         }
     }
@@ -71,6 +71,7 @@ struct login{
     cout<<"LOGIN"<<endl;
     cout<<"Username: "; cin>>user;
     cout<<"Password: "; cin>>password;
+    cout<<endl;
   }
 
   void print(){
@@ -133,8 +134,8 @@ struct mensaje_user{
   void msgUserView(){
     cout<<"Mensaje Individual"<<endl;
     cout<<"Destinatario: "; cin>>destinatario;
-    cin.ignore();
     cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+    cout<<endl;
   }
 
   string make_packet(){
@@ -174,6 +175,7 @@ struct mensaje_all{
   void msgUserView(){
     cout<<"Mensaje para Todos"<<endl;
     cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+    cout<<endl;
   }
 
   string make_packet(){
@@ -193,6 +195,40 @@ struct mensaje_all{
   }
 };
 
+struct uploadfile{
+  char accion;
+  char tamanio_file_name[3];
+  char tamanio_file_data[10];
+  char tamanio_destinatario[2];
+  char* file_name;
+  char* file_data;
+  char* destinatario;
+
+  uploadfile(){
+    accion = 'u';
+    size_t tam_fn = sizeof(tamanio_file_name)/sizeof(tamanio_file_name[0]);
+    size_t tam_fd = sizeof(tamanio_file_data)/sizeof(tamanio_file_data[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    file_name = new char[getSize(tam_fn)];
+    file_data = new char[getSize(tam_fd)];
+    destinatario = new char[getSize(tam_dest)];
+  }
+
+};
+
+struct file_AN{
+  char accion;
+  char tamanio_remitente[2];
+  char* remitente;
+
+  file_AN(){
+    accion = 'f';
+    size_t tam_re = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    remitente = new char[getSize(tam_re)];
+  }
+
+
+};
 
 struct salir{
   char accion;
@@ -262,12 +298,12 @@ bool getDataFromPacket_List(string buff,vector<string> &users){
 
 bool getDataFromPacket_Msg(string buff,string &mensaje,bool opcion=0){
   
-  if(opcion == 1){
+  /*if(opcion == 1){
     if(buff[0] != 'B'){return false;}
   }
   else{
     if(buff[0] != 'M'){return false;}
-  }
+  }*/
   
   string msg = "";
   msg += buff;
@@ -354,25 +390,28 @@ void Connection ( string IP, int port)
 
 void Listen()
 { 
+  //cout<<"open funcion Listen-cleitn"<<endl;
   char b[256];
   bzero(b,256);
   read(SocketFD, b,256);
   bool validate_login = getDataFromPacket_Okey(b);
   bzero(b,256);
+  char buffer[256];
 
   if(validate_login){
 
     regex r("\\d");
-    while(1)
-    {
+    while(1){
+      //cout<<"while-2 salida: "<<salida<<endl;
+      
       int n;
-      char buffer[256];
       bzero(buffer,256);
       n = read(SocketFD, buffer,256);
       if (n < 0){
         //perror("ERROR reading from socket");
         break;
       }
+      //cout<<"buffer-cliente:read: "<<buffer<<endl;
 
       string character = "";
       int tam_msg = len(buffer);
@@ -393,9 +432,9 @@ void Listen()
         }
       }
       else if(buffer[0] == 'M' && regex_match(character,r)){
-        string mensaje_recibido;
-        getDataFromPacket_Msg(buffer,mensaje_recibido);
-        cout<<mensaje_recibido<<endl;
+        string mensaje_recibido_priv;
+        getDataFromPacket_Msg(buffer,mensaje_recibido_priv);
+        cout<<mensaje_recibido_priv<<endl;
         bzero(buffer,256);
       }
       else if(buffer[0] == 'B' && regex_match(character,r)){
@@ -404,64 +443,85 @@ void Listen()
         cout<<mensaje_recibido<<endl;
         bzero(buffer,256);
       }
+      else if(buffer[0] == 'E'){
+        salida = true;
+        break;
+        bzero(buffer,256);
+      }
       else{
         bzero(buffer,256);
         break;
         //cout<<"general"<<endl;
         //cout<<buffer<<endl;
       }
+      //cout<<"salida: "<<salida<<endl;
     }
   }
 }
 
 
-int main(void)
+
+int main()
 {
   Connection("127.0.0.1",45000);
   int n;
   
-
   login u;
   u.loginView();
   string msg = u.make_packet();
   write(SocketFD,msg.c_str(),msg.size());
 
   thread(Listen).detach();
-  
+  //cout<<"salida: "<<salida<<endl;
   if(!salida){
     while( 1 )
       { 
+          //cout<<"while-1 salida: "<<salida<<endl;
           if(salida){break;}
-          string message;
-          cout<<">>";
-          message="";
+          string message = "";
+          //cout<<">>";cin>>message;
           getline(cin,message);
           comando = message;
+          
           
           if(comando == "/lista"){
             list l;
             message = l.make_packet();
+
+            n = write(SocketFD,message.c_str(),message.size());
+            if (n < 0){//perror("ERROR reading from socket");
+              break;
+            }
           }
           else if(comando == "/salir"){
             salir e;
             message = e.make_packet();
+
+            n = write(SocketFD,message.c_str(),message.size());
+            if (n < 0){//perror("ERROR reading from socket");
+              break;
+            }
           }
           else if(comando == "/msg_priv"){
             mensaje_user m;
             m.msgUserView();
             message = m.make_packet();
+
+            n = write(SocketFD,message.c_str(),message.size());
+            if (n < 0){//perror("ERROR reading from socket");
+              break;
+            }
           }
           else if(comando == "/msg"){
             mensaje_all ma;
             ma.msgUserView();
             message = ma.make_packet();
-          }
 
-          n = write(SocketFD,message.c_str(),message.size());
-          if (n < 0){
-            //perror("ERROR reading from socket");
-            break;
-          }    
+            n = write(SocketFD,message.c_str(),message.size());
+            if (n < 0){//perror("ERROR reading from socket");
+              break;
+            }  
+          }
       }
   }
  
