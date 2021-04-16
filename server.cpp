@@ -16,83 +16,19 @@
 
   using namespace std;
  
-//vector<int> clients;
+
+//clientes formato -> eg:  <3,[nom_usuario,password]>
 vector<pair<int,vector<string>>> clientes;
 string pass_general = "ucsp";
-
+struct error;
 ////////////////////////////////////////////
 ////////////////////////////////////////////
 
-string getUser(int id){
-  string user;
-  for(int i=0;i<clientes.size();i++){
-    if(clientes[i].first == id){
-        user = clientes[i].second[0];
-        break;
-    }
-  }
-  return user;
-}
+/////////////
+//STRUCTURE FOR ERRORS
+/////////////
 
-int getID(string name_user){
-  int user;
-  for(int i=0;i<clientes.size();i++){
-    if(clientes[i].second[0] == name_user){
-        user = clientes[i].first;
-        return user;
-    }
-  }
-  return -1;
-}
-
-
-int getSize(int s){
-    string tam = "9";
-    int res;
-    for(int i=1;i<s;i++){tam += "9";}
-    res = stoi(tam);
-    return res;
-}
-
-int len(char* w){
-    string word(w);
-    int count =0;
-    while(word[count] != '\0'){
-        count++;
-    }
-    return count;
-}
-
-string formatNumbers(int range,int number){
-    string numb = to_string(number);
-    if(numb.size() < range){
-        for(int i=0;i<range-numb.size()+1;i++){
-            numb.insert(0,"0");
-        }
-    }
-    return numb;
-}
-
-
-struct okey{
-  char accion;
-  char ok[3];
-
-  okey(){
-    accion = 'L';
-    strcpy(ok,"ok");
-  }
-
-  string make_packet(){
-    string packet = "";
-
-    packet += accion;
-    packet += ok;
-
-    return packet;
-  }
-};
-
+//error: detecta errores en el programa
 struct error{
   char accion;
   char error_msg[20];
@@ -116,6 +52,79 @@ struct error{
 };
 
 
+////////////
+//FUNCTIONS
+////////////
+
+
+//getUser: Obtener el nombre de usuario a partir del id-socket en vector clientes
+string getUser(int id){
+  string user;
+  for(int i=0;i<clientes.size();i++){
+    if(clientes[i].first == id){
+        user = clientes[i].second[0];
+        break;
+    }
+  }
+  return user;
+}
+
+//getID: Obtener el id-socket a partir del  nombre de usuario en vector clientes
+int getID(string name_user){
+  int user;
+  for(int i=0;i<clientes.size();i++){
+    if(clientes[i].second[0] == name_user){
+        user = clientes[i].first;
+        return user;
+    }
+  }
+  return -1;
+}
+
+//getSize: A partir del numero del tam de un array, devuelve el numero maximo que puede entrar en ese num  eg: 2 -> 99 | 1->9 | 3->999
+int getSize(int s){
+    string tam = "9";
+    int res;
+    for(int i=1;i<s;i++){tam += "9";}
+    res = stoi(tam);
+    return res;
+}
+
+//len: Devuelve el numero de caracteres que existe en un string
+int len(char* w){
+    string word(w);
+    int count =0;
+    while(word[count] != '\0'){
+        count++;
+    }
+    return count;
+}
+
+//formatNumbers: Hace un formato a un numero ingresado, segun la cantidad de campos en un arreglo (rango)  eg: (2,5) -> 05  | (3,2) -> 002 | (3,15) -> 015
+string formatNumbers(int range,int number){
+    string numb = to_string(number);
+    if(numb.size() < range){
+        for(int i=0;i<range-numb.size()+1;i++){
+            numb.insert(0,"0");
+        }
+    }
+    return numb;
+}
+
+//search_user: busca un usuario dentro de los clientes conectados, si esta true caso contrario false
+bool search_user(string usr_name){
+  for(int i=0;i<clientes.size();i++){
+    if(clientes[i].second[0] == usr_name){
+      return true;
+    }
+  }
+  return false;
+}
+
+//getDataFromPacket_Login: lee paquete login recibido del cliente 
+// -msg: paquete de login con formato del protocolo 
+// -data: vector que almacena [nombre,usuario]
+// -socket: valor socket de quien envio paquete para login
 bool getDataFromPacket_Login(string msg,vector<string> &data,int socket){
   string u,pssw;
   string tamU_str,tamPSSW_str;
@@ -166,6 +175,32 @@ bool getDataFromPacket_Login(string msg,vector<string> &data,int socket){
 
 }
 
+
+/////////////
+//STRUCTURES
+/////////////
+
+//okey: valida que se pudo hacer login
+struct okey{
+  char accion;
+  char ok[3];
+
+  okey(){
+    accion = 'L';
+    strcpy(ok,"ok");
+  }
+
+  string make_packet(){
+    string packet = "";
+
+    packet += accion;
+    packet += ok;
+
+    return packet;
+  }
+};
+
+//list: listar los clientes conectados al servidor
 struct list{
   char accion;
   char num_users[2];
@@ -201,15 +236,7 @@ struct list{
   }
 };
 
-bool search_user(string usr_name){
-  for(int i=0;i<clientes.size();i++){
-    if(clientes[i].second[0] == usr_name){
-      return true;
-    }
-  }
-  return false;
-}
-
+//mensaje_user: enviar mensaje privados, de un cliente a otro cliente conectado
 struct mensaje_user{
   char accion;
   char tamanio_msg[3];
@@ -305,6 +332,7 @@ struct mensaje_user{
 
 };
 
+//mensaje_all: enviar mensajes para todos, de un cliente para todos los clientes conectados
 struct mensaje_all{
   char accion;
   char tamanio_msg[3];
@@ -380,6 +408,7 @@ struct mensaje_all{
 
 };
 
+//upload_file: subir un archivo al servidor
 struct uploadfile{
   char accion;
   char tamanio_file_name[3];
@@ -403,6 +432,7 @@ struct uploadfile{
 
 };
 
+//file_AN: que un archivo recibido por un cliente pueda ser aceptado o rechazado
 struct file_AN{
   char accion;
   char tamanio_user_name[2];
@@ -416,6 +446,7 @@ struct file_AN{
 
 };
 
+//salir: que un cliente se desconecte del server
 struct salir{
   char accion;
 
@@ -446,31 +477,7 @@ struct salir{
 ////////////////////////////////////////////
 ////////////////////////////////////////////
 
-
-
-void Broadcast(int ConnectFD, string message) 
-{
-  //write(ConnectFD, message.c_str(),message.length());
-  /*
-  cout<<"Clients: ";
-  for(int i=0;i<clients.size();i++){
-    cout<<clients[i]<<",";
-  }cout<<endl;
-
-  cout<<"Clientes: ";
-  for(int i=0;i<clientes.size();i++){
-    cout<<"["<<clientes[i].first<<"-("<<clientes[i].second[0]<<"|"<<clientes[i].second[1]<<")] ,";
-  }cout<<endl;
-  */
-
-  for (int i = 0; i < clientes.size(); i++) {
-    if(clientes[i].first != ConnectFD){
-      write(clientes[i].first, message.c_str(),message.length());
-    }
-  }
-}
-
-
+//ESTABLECE CONEXIONES INICIALES
 void Connection( int &SocketFD , int port)
 {
     struct sockaddr_in stSockAddr;
@@ -504,7 +511,7 @@ void Connection( int &SocketFD , int port)
    
 }
 
-
+//ESCUCHA CONEXIONES DE CLIENTES
 void listenClient(int ConnectFD)
 {
     //cout<<"open funcion Listen-server"<<endl;

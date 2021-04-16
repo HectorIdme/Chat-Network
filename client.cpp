@@ -19,10 +19,14 @@ int SocketFD;
 string comando;
 bool salida = false;
 
-
 ////////////////////////////////////////////
 ////////////////////////////////////////////
 
+////////////
+//FUNCTIONS
+////////////
+
+//getSize: A partir del numero del tam de un array, devuelve el numero maximo que puede entrar en ese num  eg: 2 -> 99 | 1->9 | 3->999
 int getSize(int s){
     string tam = "9";
     int res;
@@ -31,6 +35,7 @@ int getSize(int s){
     return res;
 }
 
+//len: Devuelve el numero de caracteres que existe en un string
 int len(char* w){
     string word(w);
     int count =0;
@@ -40,6 +45,7 @@ int len(char* w){
     return count;
 }
 
+//formatNumbers: Hace un formato a un numero ingresado, segun la cantidad de campos en un arreglo (rango)  eg: (2,5) -> 05  | (3,2) -> 002 | (3,15) -> 015
 string formatNumbers(int range,int number){
     //cout<<"range: "<<range<<" num: "<<number<<endl;
     string numb = to_string(number);
@@ -51,200 +57,8 @@ string formatNumbers(int range,int number){
     return numb;
 }
 
-
-struct login{
-  char accion;
-  char tamanio_user[2];
-  char tamanio_password[2];
-  char* user;
-  char* password;
-
-  login(){
-    size_t tam_user = sizeof(tamanio_user)/sizeof(tamanio_user[0]);
-    size_t tam_pass = sizeof(tamanio_password)/sizeof(tamanio_password[0]);
-    accion = 'l';
-    user = new char[getSize(tam_user)];
-    password = new char[getSize(tam_pass)];
-  }
-
-  void loginView(){
-    cout<<"LOGIN"<<endl;
-    cout<<"Username: "; cin>>user;
-    cout<<"Password: "; cin>>password;
-    cout<<endl;
-  }
-
-  void print(){
-      cout<<user<<endl;
-      cout<<password<<endl;
-  }
-
-  string make_packet(){
-
-    size_t tam_user = sizeof(tamanio_user)/sizeof(tamanio_user[0]);
-    size_t tam_pass = sizeof(tamanio_password)/sizeof(tamanio_password[0]);
-    int numberChar_user = len(user);
-    int numberChar_pass = len(password);
-
-    string user_size = formatNumbers(tam_user,numberChar_user);
-    string pass_size = formatNumbers(tam_pass,numberChar_pass);
-
-    string packet = "";
-
-    packet += accion;
-    packet += user_size;
-    packet += pass_size;
-    packet += user;
-    packet += password;
-
-    return packet;
-  }
-
-};
-
-struct list{
-  char accion;
-
-  list(){
-    accion = 'i';
-  }
-
-  string make_packet(){
-    string packet = "";
-    packet += accion;
-    return packet;
-  }
-};
-
-struct mensaje_user{
-  char accion;
-  char tamanio_msg[3];
-  char tamanio_destinatario[2];
-  char* msg;
-  char* destinatario;
-
-  mensaje_user(){
-    accion = 'm';
-    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
-    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
-    msg = new char[getSize(tam_msg)];
-    destinatario = new char[getSize(tam_dest)];
-  }
-
-  void msgUserView(){
-    cout<<"Mensaje Individual"<<endl;
-    cout<<"Destinatario: "; cin>>destinatario;
-    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
-    cout<<endl;
-  }
-
-  string make_packet(){
-
-    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
-    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
-    int numberChar_msg = len(msg);
-    int numberChar_dest = len(destinatario);
-
-    string msg_size = formatNumbers(tam_msg,numberChar_msg);
-    string dest_size = formatNumbers(tam_dest,numberChar_dest);
-
-    string packet = "";
-
-    packet += accion;
-    packet += msg_size;
-    packet += dest_size;
-    packet += msg;
-    packet += destinatario;
-
-    return packet;
-  }
-};
-
-struct mensaje_all{
-  char accion;
-  char tamanio_msg[3];
-  char* msg;
-
-
-  mensaje_all(){
-    accion = 'b';
-    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
-    msg = new char[getSize(tam_msg)];
-  }
-
-  void msgUserView(){
-    cout<<"Mensaje para Todos"<<endl;
-    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
-    cout<<endl;
-  }
-
-  string make_packet(){
-
-    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
-    int numberChar_msg = len(msg);
-
-    string msg_size = formatNumbers(tam_msg,numberChar_msg);
-
-    string packet = "";
-
-    packet += accion;
-    packet += msg_size;
-    packet += msg;
-
-    return packet;
-  }
-};
-
-struct uploadfile{
-  char accion;
-  char tamanio_file_name[3];
-  char tamanio_file_data[10];
-  char tamanio_destinatario[2];
-  char* file_name;
-  char* file_data;
-  char* destinatario;
-
-  uploadfile(){
-    accion = 'u';
-    size_t tam_fn = sizeof(tamanio_file_name)/sizeof(tamanio_file_name[0]);
-    size_t tam_fd = sizeof(tamanio_file_data)/sizeof(tamanio_file_data[0]);
-    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
-    file_name = new char[getSize(tam_fn)];
-    file_data = new char[getSize(tam_fd)];
-    destinatario = new char[getSize(tam_dest)];
-  }
-
-};
-
-struct file_AN{
-  char accion;
-  char tamanio_remitente[2];
-  char* remitente;
-
-  file_AN(){
-    accion = 'f';
-    size_t tam_re = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
-    remitente = new char[getSize(tam_re)];
-  }
-
-
-};
-
-struct salir{
-  char accion;
-
-  salir(){
-    accion = 'x';
-  }
-
-  string make_packet(){
-    string packet = "";
-    packet += accion;
-    return packet;
-  }
-};
-
-
+//getDataFromPacket_Okey: lee paquete Okey recibido del server 
+// -buff: paquete okey string enviado por el server
 bool getDataFromPacket_Okey(string buff){
   if(buff[0] != 'L'){return false;}
 
@@ -255,6 +69,9 @@ bool getDataFromPacket_Okey(string buff){
   return true;
 }
 
+//getDataFromPacket_List: lee paquete List recibido del server
+// -buff: paquete list string enviado por el server
+// -users: vector que almacenara los user_name de los clientes conectados al server
 bool getDataFromPacket_List(string buff,vector<string> &users){
   if(buff[0] != 'I'){return false;}
 
@@ -296,7 +113,10 @@ bool getDataFromPacket_List(string buff,vector<string> &users){
   else{return false;}
 }
 
-bool getDataFromPacket_Msg(string buff,string &mensaje,bool opcion=0){
+//getDataFromPacket_Msg: lee paquete msg_user o msg recibido del server
+// -buff: paquete msg_user o msg string enviado por el server
+// -opcion: si su valor es 0 entonces el mensaje es privado, si es 1 el mensaje es para todos los clientes
+bool getDataFromPacket_Msg(string buff,bool opcion=0){
   
   /*if(opcion == 1){
     if(buff[0] != 'B'){return false;}
@@ -331,7 +151,8 @@ bool getDataFromPacket_Msg(string buff,string &mensaje,bool opcion=0){
   rem = msg.substr(0,tam_rem);
   msg.erase(0,tam_rem);
 
-  //cout<<rem + ": " + mssg;
+  string mensaje="";
+
   if(opcion == 1){
     mensaje = rem + ": " + mssg;
   }
@@ -339,14 +160,221 @@ bool getDataFromPacket_Msg(string buff,string &mensaje,bool opcion=0){
     mensaje = "(priv)" + rem + ": " + mssg;
   }
    
+   cout<<mensaje<<endl;
 
   if(msg.size() == 0){return true;}
   else{return false;}
 }
 
+
+/////////////
+//STRUCTURES
+/////////////
+
+//login: permite hacer login del cliente al quere conectarse al server
+struct login{
+  char accion;
+  char tamanio_user[2];
+  char tamanio_password[2];
+  char* user;
+  char* password;
+
+  login(){
+    size_t tam_user = sizeof(tamanio_user)/sizeof(tamanio_user[0]);
+    size_t tam_pass = sizeof(tamanio_password)/sizeof(tamanio_password[0]);
+    accion = 'l';
+    user = new char[getSize(tam_user)];
+    password = new char[getSize(tam_pass)];
+  }
+
+  void loginView(){
+    cout<<"LOGIN"<<endl;
+    cout<<"Username: "; cin>>user;
+    cout<<"Password: "; cin>>password;
+  }
+
+  void print(){
+      cout<<user<<endl;
+      cout<<password<<endl;
+  }
+
+  string make_packet(){
+
+    size_t tam_user = sizeof(tamanio_user)/sizeof(tamanio_user[0]);
+    size_t tam_pass = sizeof(tamanio_password)/sizeof(tamanio_password[0]);
+    int numberChar_user = len(user);
+    int numberChar_pass = len(password);
+
+    string user_size = formatNumbers(tam_user,numberChar_user);
+    string pass_size = formatNumbers(tam_pass,numberChar_pass);
+
+    string packet = "";
+
+    packet += accion;
+    packet += user_size;
+    packet += pass_size;
+    packet += user;
+    packet += password;
+
+    return packet;
+  }
+
+};
+
+//list: listar los clientes conectados al servidor
+struct list{
+  char accion;
+
+  list(){
+    accion = 'i';
+  }
+
+  string make_packet(){
+    string packet = "";
+    packet += accion;
+    return packet;
+  }
+};
+
+//mensaje_user: enviar mensaje privados, de un cliente a otro cliente conectado
+struct mensaje_user{
+  char accion;
+  char tamanio_msg[3];
+  char tamanio_destinatario[2];
+  char* msg;
+  char* destinatario;
+
+  mensaje_user(){
+    accion = 'm';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    msg = new char[getSize(tam_msg)];
+    destinatario = new char[getSize(tam_dest)];
+  }
+
+  void msgUserView(){
+    cout<<"Mensaje PRIVADO"<<endl;
+    cout<<"Destinatario: "; cin>>destinatario;
+    cin.ignore();
+    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+    cout<<endl;
+  }
+
+  string make_packet(){
+
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    int numberChar_msg = len(msg);
+    int numberChar_dest = len(destinatario);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+    string dest_size = formatNumbers(tam_dest,numberChar_dest);
+
+    string packet = "";
+
+    packet += accion;
+    packet += msg_size;
+    packet += dest_size;
+    packet += msg;
+    packet += destinatario;
+
+    return packet;
+  }
+};
+
+//mensaje_all: enviar mensajes para todos, de un cliente para todos los clientes conectados
+struct mensaje_all{
+  char accion;
+  char tamanio_msg[3];
+  char* msg;
+
+
+  mensaje_all(){
+    accion = 'b';
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    msg = new char[getSize(tam_msg)];
+  }
+
+  void msgUserView(){
+    cout<<"Mensaje para Todos"<<endl;
+    cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
+    cout<<endl;
+  }
+
+  string make_packet(){
+
+    size_t tam_msg = sizeof(tamanio_msg)/sizeof(tamanio_msg[0]);
+    int numberChar_msg = len(msg);
+
+    string msg_size = formatNumbers(tam_msg,numberChar_msg);
+
+    string packet = "";
+
+    packet += accion;
+    packet += msg_size;
+    packet += msg;
+
+    return packet;
+  }
+};
+
+//upload_file: subir un archivo al servidor
+struct uploadfile{
+  char accion;
+  char tamanio_file_name[3];
+  char tamanio_file_data[10];
+  char tamanio_destinatario[2];
+  char* file_name;
+  char* file_data;
+  char* destinatario;
+
+  uploadfile(){
+    accion = 'u';
+    size_t tam_fn = sizeof(tamanio_file_name)/sizeof(tamanio_file_name[0]);
+    size_t tam_fd = sizeof(tamanio_file_data)/sizeof(tamanio_file_data[0]);
+    size_t tam_dest = sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]);
+    file_name = new char[getSize(tam_fn)];
+    file_data = new char[getSize(tam_fd)];
+    destinatario = new char[getSize(tam_dest)];
+  }
+
+};
+
+//file_AN: que un archivo recibido por un cliente pueda ser aceptado o rechazado
+struct file_AN{
+  char accion;
+  char tamanio_remitente[2];
+  char* remitente;
+
+  file_AN(){
+    accion = 'f';
+    size_t tam_re = sizeof(tamanio_remitente)/sizeof(tamanio_remitente[0]);
+    remitente = new char[getSize(tam_re)];
+  }
+
+
+};
+
+//salir: que un cliente se desconecte del server
+struct salir{
+  char accion;
+
+  salir(){
+    accion = 'x';
+  }
+
+  string make_packet(){
+    string packet = "";
+    packet += accion;
+    return packet;
+  }
+};
+
+
 ////////////////////////////////////////////
 ////////////////////////////////////////////
 
+//ESTABLECE CONEXION CON SERVIDOR
 void Connection ( string IP, int port)
 {
   struct sockaddr_in stSockAddr;
@@ -388,6 +416,7 @@ void Connection ( string IP, int port)
 }
 
 
+//ESCUCHA CONEXIONES DEL SERVER
 void Listen()
 { 
   //cout<<"open funcion Listen-cleitn"<<endl;
@@ -420,33 +449,34 @@ void Listen()
       if(comando == "/lista"){
         vector<string> users;
         getDataFromPacket_List(buffer,users);
-        for(int i=0;i<users.size();i++){
-          cout<<"[-]"<<users[i]<<endl;
-        }
+        cout<<endl;
+        for(int i=0;i<users.size();i++){ cout<<"[-]"<<users[i]<<endl;}
+        cout<<">>Presione ENTER para continuar\n";
+        cout<<endl;
         bzero(buffer,256);
       }
       else if(comando == "/salir"){
         if(strcmp(buffer,"X")==0){
           salida = true;
+          cout<<">>Presione ENTER para continuar\n";
           break;
         }
       }
       else if(buffer[0] == 'M' && regex_match(character,r)){
-        string mensaje_recibido_priv;
-        getDataFromPacket_Msg(buffer,mensaje_recibido_priv);
-        cout<<mensaje_recibido_priv<<endl;
+        getDataFromPacket_Msg(buffer);
         bzero(buffer,256);
+        cout<<endl;
       }
       else if(buffer[0] == 'B' && regex_match(character,r)){
-        string mensaje_recibido;
-        getDataFromPacket_Msg(buffer,mensaje_recibido,1);
-        cout<<mensaje_recibido<<endl;
+        getDataFromPacket_Msg(buffer,1);
         bzero(buffer,256);
+        cout<<endl;
       }
       else if(buffer[0] == 'E'){
         salida = true;
         break;
         bzero(buffer,256);
+        cout<<endl;
       }
       else{
         bzero(buffer,256);
@@ -458,7 +488,6 @@ void Listen()
     }
   }
 }
-
 
 
 int main()
@@ -477,6 +506,7 @@ int main()
     while( 1 )
       { 
           //cout<<"while-1 salida: "<<salida<<endl;
+          cout<<endl;
           if(salida){break;}
           string message = "";
           //cout<<">>";cin>>message;
@@ -522,6 +552,7 @@ int main()
               break;
             }  
           }
+
       }
   }
  
