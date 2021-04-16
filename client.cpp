@@ -190,8 +190,10 @@ struct login{
 
   void loginView(){
     cout<<"LOGIN"<<endl;
-    cout<<"Username: "; cin>>user;
-    cout<<"Password: "; cin>>password;
+    cout<<"Username: "; cin.getline(user,getSize(sizeof(tamanio_user)/sizeof(tamanio_user[0]))); //cin>>user;
+    //cin.ignore();
+    cout<<"Password: "; cin.getline(password,getSize(sizeof(tamanio_password)/sizeof(tamanio_password[0]))); //cin>>password;
+    cout<<endl;
   }
 
   void print(){
@@ -255,8 +257,8 @@ struct mensaje_user{
 
   void msgUserView(){
     cout<<"Mensaje PRIVADO"<<endl;
-    cout<<"Destinatario: "; cin>>destinatario;
-    cin.ignore();
+    cout<<"Destinatario: "; cin.getline(destinatario,getSize(sizeof(tamanio_destinatario)/sizeof(tamanio_destinatario[0]))); //cin>>destinatario;
+    //cin.ignore();
     cout<<"Mensaje: "; cin.getline(msg,getSize(sizeof(tamanio_msg)/sizeof(tamanio_msg[0])));
     cout<<endl;
   }
@@ -418,14 +420,13 @@ void Connection ( string IP, int port)
 
 
 //ESCUCHA CONEXIONES DEL SERVER
-void Listen()
-{ 
+void Listen(){ 
   //cout<<"open funcion Listen-cleitn"<<endl;
   char b[256];
   bzero(b,256);
   read(SocketFD, b,256);
+  //cout<<"buffer-cliente:read: "<<b<<endl;
   bool validate_login = getDataFromPacket_Okey(b);
-  bzero(b,256);
   char buffer[256];
 
   if(validate_login){
@@ -452,14 +453,14 @@ void Listen()
         getDataFromPacket_List(buffer,users);
         cout<<endl;
         for(int i=0;i<users.size();i++){ cout<<"[-]"<<users[i]<<endl;}
-        cout<<">>Presione ENTER para continuar\n";
+        cout <<"Press any key to continue...";
         cout<<endl;
         bzero(buffer,256);
       }
       else if(comando == "/salir"){
         if(strcmp(buffer,"X")==0){
           salida = true;
-          cout<<">>Presione ENTER para continuar\n";
+          cout <<"Press any key to continue...\n";
           break;
         }
       }
@@ -473,26 +474,42 @@ void Listen()
         bzero(buffer,256);
         cout<<endl;
       }
-      else if(buffer[0] == 'E'){
-        salida = true;
-        break;
+      else if(buffer[0] == 'E' && character == "!"){
+        string msg_error = "";
+        msg_error += buffer;
+        msg_error.erase(0,1);
+
+        cout<<msg_error<<endl;
+        //salida = true;
+        //break;
         bzero(buffer,256);
         cout<<endl;
       }
       else{
         bzero(buffer,256);
-        break;
+        //break;
         //cout<<"general"<<endl;
         //cout<<buffer<<endl;
       }
       //cout<<"salida: "<<salida<<endl;
     }
   }
+  else{
+    string mensaje_error = "";
+    mensaje_error += b;
+    mensaje_error.erase(0,1);
+    cout<<mensaje_error<<endl;
+    salida = true;
+    cout <<"Press any key to continue...\n";
+  }
+
+
 }
 
 
 int main()
 {
+  //Connection("100.107.106.165",50001);
   Connection("127.0.0.1",45000);
   int n;
   
@@ -552,6 +569,12 @@ int main()
             if (n < 0){//perror("ERROR reading from socket");
               break;
             }  
+          }
+          else{
+            n = write(SocketFD,message.c_str(),message.size());
+            if (n < 0){perror("ERROR reading from socket");
+              break;
+            } 
           }
 
       }

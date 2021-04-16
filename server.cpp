@@ -1,5 +1,5 @@
   /* Server code in C */
-    //Para prueba - jose servidor: ( puerto 45001)
+  //Para prueba - jose servidor: ( puerto 45001)
   //g++ server.cpp -o server.exe -lpthread
   #include <sys/types.h>
   #include <sys/socket.h>
@@ -20,8 +20,9 @@
 
 //clientes formato -> eg:  <3,[nom_usuario,password]>
 vector<pair<int,vector<string>>> clientes;
-string pass_general = "ucsp";
-struct error;
+string pass_master = "ucsp";
+bool usar_master = 0;
+
 ////////////////////////////////////////////
 ////////////////////////////////////////////
 
@@ -39,12 +40,13 @@ struct error{
   }
 
   void set_msg(string msg){
+    bzero(error_msg,20);
     strcpy(error_msg,msg.c_str());
   }  
 
   string make_packet(){
-    string packet = " ";
-    
+    string packet = "";
+
     packet += accion;
     packet += error_msg;
 
@@ -126,19 +128,12 @@ bool search_user(string usr_name){
 // -msg: paquete de login con formato del protocolo 
 // -data: vector que almacena [nombre,usuario]
 // -socket: valor socket de quien envio paquete para login
-bool getDataFromPacket_Login(string msg,vector<string> &data,int socket){
+bool getDataFromPacket_Login(string msg,vector<string> &data,int socket,bool master=0){
   string u,pssw;
   string tamU_str,tamPSSW_str;
   int tam_u,tam_pssw;
 
-  if(msg[0] != 'l'){
-    string msg_error;
-    error e;
-    e.set_msg("no coincide protocolo");
-    msg_error = e.make_packet();
-    write(socket,msg_error.c_str(),msg_error.size());
-    return false;
-  }
+  if(msg[0] != 'l'){return false;}
 
   msg.erase(0,1);
 
@@ -157,23 +152,30 @@ bool getDataFromPacket_Login(string msg,vector<string> &data,int socket){
 
   pssw = msg.substr(0,tam_pssw);
 
-  if(pssw != pass_general){
-    string msg_error;
-    error e;
-    e.set_msg("Contrasenia no coincide");
-    msg_error = e.make_packet();
-    write(socket,msg_error.c_str(),msg_error.size());
-    return false;
+  if(master){
+    if(pssw != pass_master){
+      return false;
+    }
   }
 
   msg.erase(0,tam_pssw);
 
+  cout<<"[+]"<<u<<" se conecto "<<endl;
   data.push_back(u);
   data.push_back(pssw);
 
   if(msg.size() == 0){return true;}
   else{return false;}
 
+}
+
+//enviar_error: envia mensaje de error a cliente que lo provoco
+void enviar_error(int socket_dest,string mensaje){
+    string error_msg;
+    error e;
+    e.set_msg(mensaje);
+    error_msg = e.make_packet();
+    write(socket_dest,error_msg.c_str(),error_msg.size());
 }
 
 
@@ -285,18 +287,10 @@ struct mensaje_user{
     if(search_user(dest)){
       strcpy(msg,mssg.c_str());
       socket_dest = getID(dest);
-
-      if(socket_dest == -1){
-        return false;
-      }
-
       return true;
     }else{
       return false;
     }
-
-    if(mensg.size() == 0){return true;}
-    else{return false;}
 
   }
 
@@ -465,7 +459,10 @@ struct salir{
   void deleteSocket(int id){
     int pos=0;
     for(;pos<clientes.size();pos++){
-      if(clientes[pos].first == id){break;}
+      if(clientes[pos].first == id){
+        cout<<"[-]"<<clientes[pos].second[0]<<" se desconecto "<<endl;
+        break;
+      }
     }
 
     shutdown(id, SHUT_RDWR);
@@ -524,9 +521,10 @@ void listenClient(int ConnectFD)
     bzero(buffer,256); 
     n = read(ConnectFD,buffer,255);
     if (n < 0) perror("ERROR reading from socket");
+    //cout<<"buffer-read-server: "<<buffer<<endl;
 
     vector<string> datos_login;
-    bool validate_login= getDataFromPacket_Login(buffer,datos_login,ConnectFD);
+    bool validate_login= getDataFromPacket_Login(buffer,datos_login,ConnectFD,usar_master);
 
     if(validate_login){
 
@@ -581,9 +579,20 @@ void listenClient(int ConnectFD)
           mensaje_user ms;
           int socket_f = ConnectFD;
           int socket_d;
-          ms.getDataFromPacket_MssgUser(buffer,socket_d);
-          msg = ms.make_packet(socket_f);
-          ms.sendMessage(socket_d,msg);
+          bool problem = ms.getDataFromPacket_MssgUser(buffer,socket_d);
+
+          if(!problem){
+            string error_msg,msg_op = "!!!Destinatario no existe";
+            error e;
+            e.set_msg(msg_op);
+            error_msg = e.make_packet();
+            write(ConnectFD,error_msg.c_str(),error_msg.size());
+          }
+          else{
+            msg = ms.make_packet(socket_f);
+            ms.sendMessage(socket_d,msg);
+          }
+
           bzero(buffer,256);
           msg = "";
         }
@@ -599,51 +608,53 @@ void listenClient(int ConnectFD)
         }
 
         else{
-          cout<<"Ingrese un comando"<<endl;
+          enviar_error(ConnectFD,"!!!Comando invalido");
           bzero(buffer,256);
           msg = "";
-          //cout<<user<<": "<<buffer<<endl;
-          //cout<<"Type a message: ";
-          //message= user + ": " + buffer;
-          //getline(cin,message);
-          //Broadcast(ConnectFD, message);
         }
       }
     }
     else{
-      for(int i = 0; i < clientes.size(); ++i) 
-      {
-        if (clientes[i].first == ConnectFD) 
-        {
-          shutdown(ConnectFD, SHUT_RDWR);
-          close(ConnectFD);
-          clientes.erase(clientes.begin() + i);
+      //enviar error
+      error contra;
+      string mssj_error = "!!!Contrasenia incorrecta";
+      strcpy(contra.error_msg,mssj_error.c_str());
+      string error_contra = contra.make_packet();
+      write(ConnectFD,error_contra.c_str(),error_contra.size());
+
+      //quitar conexion con server
+      /*int i=0;
+      for(; i < clientes.size(); i++) {
+        if (clientes[i].first == ConnectFD){
           break;
         }
-      }
+      }*/
+      shutdown(ConnectFD, SHUT_RDWR);
+      //clientes.erase(clientes.begin() + i);
+      close(ConnectFD);
+      /*if(clientes.size()){
+        ConnectFD = clientes[0].first;
+      }*/
+
     }
     
-    /*
-    cout<<"borrar server"<<endl;
-    for(int i = 0; i < clientes.size(); ++i) 
-    {
-      if (clientes[i].first == ConnectFD) 
-      {
-        shutdown(ConnectFD, SHUT_RDWR);
-        close(ConnectFD);
-        clientes.erase(clientes.begin() + i);
-      }
-    }
-    */
 }
 
 int main(void)
 {
+  char op;
+  cout<<"Desea que clientes usen clave maestra <"<<pass_master<<"> [y/n (default)] ";
+  cin>>op;
+  if(op == 'y'){
+    usar_master = 1;
+  }
+
   struct sockaddr_in stSockAddr;
   int SocketFD;
   char buffer[256];
   int n;
   cout<<"Beginning the server"<<endl;
+  //Connection( SocketFD, 45001);
   Connection( SocketFD, 45000);
   
   cout<<"Connection initialized"<<endl;
