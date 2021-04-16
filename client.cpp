@@ -1,4 +1,5 @@
 /* Client code in C++ */
+//Para prueba - jose servidor: ( IP 100.107.106.165 || puerto 50001)
 //g++ client.cpp -o client.exe -lpthread
 #include <sys/types.h>
 #include <sys/socket.h>

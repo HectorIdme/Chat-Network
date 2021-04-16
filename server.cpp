@@ -1,4 +1,5 @@
   /* Server code in C */
+    //Para prueba - jose servidor: ( puerto 45001)
   //g++ server.cpp -o server.exe -lpthread
   #include <sys/types.h>
   #include <sys/socket.h>
